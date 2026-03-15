@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -6,29 +6,33 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
+    --background: 220 20% 97%;
     --foreground: 222 47% 11%;
-    --card: 210 20% 98%;
+    --card: 0 0% 100%;
     --card-foreground: 222 47% 11%;
     --popover: 0 0% 100%;
     --popover-foreground: 222 47% 11%;
-    --primary: 221 83% 53%;
-    --primary-foreground: 0 0% 100%;
-    --primary-muted: 214 100% 97%;
-    --secondary: 210 20% 98%;
-    --secondary-foreground: 222 47% 11%;
-    --muted: 210 20% 96%;
+    --primary: 174 72% 46%;
+    --primary-foreground: 222 47% 5%;
+    --primary-glow: 174 72% 56%;
+    --secondary: 260 60% 58%;
+    --secondary-foreground: 0 0% 100%;
+    --muted: 220 14% 92%;
     --muted-foreground: 215 16% 47%;
-    --accent: 210 20% 98%;
-    --accent-foreground: 222 47% 11%;
+    --accent: 280 60% 55%;
+    --accent-foreground: 0 0% 100%;
     --accent-live: 0 84% 60%;
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
-    --border: 0 0% 0% / 0.08;
-    --border-subtle: 0 0% 0% / 0.05;
-    --input: 214 32% 91%;
-    --ring: 221 83% 53%;
-    --radius: 1rem;
+    --border: 220 13% 87%;
+    --input: 220 13% 87%;
+    --ring: 174 72% 46%;
+    --radius: 0.75rem;
+
+    --neon-cyan: 174 72% 46%;
+    --neon-teal: 170 80% 40%;
+    --deep-violet: 260 60% 58%;
+    --soft-magenta: 310 60% 60%;
 
     --sidebar-background: 0 0% 98%;
     --sidebar-foreground: 240 5.3% 26.1%;
@@ -37,35 +41,55 @@
     --sidebar-accent: 240 4.8% 95.9%;
     --sidebar-accent-foreground: 240 5.9% 10%;
     --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-ring: 174 72% 46%;
 
-    --shadow-card: 0 0 0 1px rgba(0,0,0,0.05), 0 2px 4px rgba(0,0,0,0.05), 0 12px 24px rgba(0,0,0,0.05);
-    --shadow-active: 0 0 0 1px rgba(0,0,0,0.05), 0 4px 8px rgba(0,0,0,0.08), 0 16px 32px rgba(0,0,0,0.08);
+    --glass-bg: 0 0% 100% / 0.7;
+    --glass-border: 0 0% 100% / 0.3;
+    --shadow-card: 0 4px 24px -4px rgba(0,0,0,0.08);
+    --shadow-glow: 0 0 40px -10px hsl(174 72% 46% / 0.15);
   }
 
   .dark {
-    --background: 222 47% 5%;
-    --foreground: 210 40% 98%;
-    --card: 222 47% 8%;
-    --card-foreground: 210 40% 98%;
-    --popover: 222 47% 5%;
-    --popover-foreground: 210 40% 98%;
-    --primary: 221 83% 53%;
-    --primary-foreground: 0 0% 100%;
-    --primary-muted: 221 83% 15%;
-    --secondary: 217 33% 17%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 217 33% 17%;
-    --muted-foreground: 215 20% 65%;
-    --accent: 217 33% 17%;
-    --accent-foreground: 210 40% 98%;
+    --background: 225 25% 6%;
+    --foreground: 210 40% 95%;
+    --card: 225 25% 9%;
+    --card-foreground: 210 40% 95%;
+    --popover: 225 25% 8%;
+    --popover-foreground: 210 40% 95%;
+    --primary: 174 72% 50%;
+    --primary-foreground: 225 25% 4%;
+    --primary-glow: 174 72% 60%;
+    --secondary: 260 60% 62%;
+    --secondary-foreground: 0 0% 100%;
+    --muted: 225 20% 14%;
+    --muted-foreground: 215 20% 55%;
+    --accent: 280 60% 60%;
+    --accent-foreground: 0 0% 100%;
     --accent-live: 0 84% 60%;
-    --destructive: 0 63% 31%;
+    --destructive: 0 63% 40%;
     --destructive-foreground: 210 40% 98%;
-    --border: 0 0% 100% / 0.08;
-    --border-subtle: 0 0% 100% / 0.05;
-    --input: 217 33% 17%;
-    --ring: 221 83% 53%;
+    --border: 225 15% 16%;
+    --input: 225 15% 16%;
+    --ring: 174 72% 50%;
+
+    --neon-cyan: 174 72% 50%;
+    --neon-teal: 170 80% 45%;
+    --deep-violet: 260 60% 62%;
+    --soft-magenta: 310 60% 65%;
+
+    --sidebar-background: 225 25% 7%;
+    --sidebar-foreground: 210 40% 90%;
+    --sidebar-primary: 174 72% 50%;
+    --sidebar-primary-foreground: 225 25% 4%;
+    --sidebar-accent: 225 20% 12%;
+    --sidebar-accent-foreground: 210 40% 90%;
+    --sidebar-border: 225 15% 14%;
+    --sidebar-ring: 174 72% 50%;
+
+    --glass-bg: 225 25% 10% / 0.6;
+    --glass-border: 225 15% 20% / 0.5;
+    --shadow-card: 0 4px 24px -4px rgba(0,0,0,0.4);
+    --shadow-glow: 0 0 60px -10px hsl(174 72% 50% / 0.2);
   }
 }
 
@@ -82,8 +106,30 @@
   .shadow-card {
     box-shadow: var(--shadow-card);
   }
-  .shadow-active {
-    box-shadow: var(--shadow-active);
+  .shadow-glow {
+    box-shadow: var(--shadow-glow);
+  }
+  .glass {
+    background: hsl(var(--glass-bg));
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid hsl(var(--glass-border));
+  }
+  .glass-strong {
+    background: hsl(var(--glass-bg));
+    backdrop-filter: blur(32px);
+    -webkit-backdrop-filter: blur(32px);
+    border: 1px solid hsl(var(--glass-border));
+  }
+  .gradient-text {
+    @apply bg-clip-text text-transparent;
+    background-image: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--secondary)), hsl(var(--accent)));
+  }
+  .gradient-primary {
+    background-image: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--neon-teal)));
+  }
+  .gradient-hero {
+    background-image: linear-gradient(135deg, hsl(var(--primary) / 0.1), hsl(var(--secondary) / 0.1), hsl(var(--accent) / 0.05));
   }
 }
 
@@ -91,7 +137,6 @@
   0%, 100% { opacity: 0.4; }
   50% { opacity: 1; }
 }
-
 .animate-breathe {
   animation: breathe 2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
 }
@@ -100,7 +145,22 @@
   0% { transform: scale(1); opacity: 0.6; }
   100% { transform: scale(1.15); opacity: 0; }
 }
-
 .animate-pulse-ring {
   animation: pulse-ring 1.5s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+}
+.animate-float {
+  animation: float 6s ease-in-out infinite;
+}
+
+@keyframes glow-pulse {
+  0%, 100% { opacity: 0.3; filter: blur(40px); }
+  50% { opacity: 0.6; filter: blur(50px); }
+}
+.animate-glow-pulse {
+  animation: glow-pulse 4s ease-in-out infinite;
 }
