@@ -16,13 +16,61 @@ const languages = [
 
 // Simple demo translations
 const demoTranslations: Record<string, Record<string, string>> = {
-  Spanish: { "hello": "hola", "thank you": "gracias", "good morning": "buenos días", "how are you": "¿cómo estás?", "goodbye": "adiós", "please": "por favor", "yes": "sí", "no": "no" },
-  French: { "hello": "bonjour", "thank you": "merci", "good morning": "bonjour", "how are you": "comment allez-vous?", "goodbye": "au revoir", "please": "s'il vous plaît", "yes": "oui", "no": "non" },
-  Hindi: { "hello": "नमस्ते", "thank you": "धन्यवाद", "good morning": "सुप्रभात", "how are you": "आप कैसे हैं?", "goodbye": "अलविदा", "please": "कृपया", "yes": "हाँ", "no": "नहीं" },
-  Arabic: { "hello": "مرحبا", "thank you": "شكرا", "good morning": "صباح الخير", "how are you": "كيف حالك؟", "goodbye": "مع السلامة" },
-  German: { "hello": "hallo", "thank you": "danke", "good morning": "guten morgen", "how are you": "wie geht es ihnen?", "goodbye": "auf wiedersehen" },
-  Japanese: { "hello": "こんにちは", "thank you": "ありがとう", "good morning": "おはようございます", "how are you": "お元気ですか？" },
-  Korean: { "hello": "안녕하세요", "thank you": "감사합니다", "good morning": "좋은 아침", "how are you": "어떻게 지내세요?" },
+  Spanish: {
+    "hello": "hola", "hi": "hola", "thank you": "gracias", "thanks": "gracias", "bye": "adiós", "goodbye": "adiós",
+    "good morning": "buenos días", "good afternoon": "buenas tardes", "good evening": "buenas tardes", "good night": "buenas noches",
+    "how are you": "¿cómo estás?", "please": "por favor", "yes": "sí", "no": "no",
+    "sorry": "lo siento", "excuse me": "disculpe", "welcome": "bienvenido", "help": "ayuda",
+    "i love you": "te quiero", "friend": "amigo", "water": "agua", "food": "comida",
+    "my name is": "mi nombre es", "nice to meet you": "encantado de conocerte", "see you later": "hasta luego",
+    "i dont understand": "no entiendo", "can you help me": "¿puedes ayudarme?", "where is": "¿dónde está?",
+  },
+  French: {
+    "hello": "bonjour", "hi": "salut", "thank you": "merci", "thanks": "merci", "bye": "au revoir", "goodbye": "au revoir",
+    "good morning": "bonjour", "good afternoon": "bon après-midi", "good evening": "bonsoir", "good night": "bonne nuit",
+    "how are you": "comment allez-vous?", "please": "s'il vous plaît", "yes": "oui", "no": "non",
+    "sorry": "désolé", "excuse me": "excusez-moi", "welcome": "bienvenue", "help": "aide",
+    "i love you": "je t'aime", "friend": "ami", "water": "eau", "food": "nourriture",
+    "my name is": "je m'appelle", "nice to meet you": "enchanté", "see you later": "à plus tard",
+    "i dont understand": "je ne comprends pas", "can you help me": "pouvez-vous m'aider?", "where is": "où est?",
+  },
+  Hindi: {
+    "hello": "नमस्ते", "hi": "नमस्ते", "thank you": "धन्यवाद", "thanks": "शुक्रिया", "bye": "अलविदा", "goodbye": "अलविदा",
+    "good morning": "सुप्रभात", "good afternoon": "शुभ अपराह्न", "good evening": "शुभ संध्या", "good night": "शुभ रात्रि",
+    "how are you": "आप कैसे हैं?", "please": "कृपया", "yes": "हाँ", "no": "नहीं",
+    "sorry": "माफ़ कीजिए", "excuse me": "क्षमा करें", "welcome": "स्वागत है", "help": "मदद",
+    "i love you": "मैं तुमसे प्यार करता हूँ", "friend": "दोस्त", "water": "पानी", "food": "खाना",
+    "my name is": "मेरा नाम है", "nice to meet you": "आपसे मिलकर खुशी हुई", "see you later": "फिर मिलेंगे",
+    "i dont understand": "मुझे समझ नहीं आया", "can you help me": "क्या आप मेरी मदद कर सकते हैं?", "where is": "कहाँ है?",
+  },
+  Arabic: {
+    "hello": "مرحبا", "hi": "أهلاً", "thank you": "شكرا", "thanks": "شكرا", "bye": "مع السلامة", "goodbye": "مع السلامة",
+    "good morning": "صباح الخير", "good afternoon": "مساء الخير", "good evening": "مساء الخير", "good night": "تصبح على خير",
+    "how are you": "كيف حالك؟", "please": "من فضلك", "yes": "نعم", "no": "لا",
+    "sorry": "آسف", "excuse me": "عفواً", "welcome": "أهلاً وسهلاً", "help": "مساعدة",
+    "i love you": "أحبك", "friend": "صديق", "water": "ماء", "food": "طعام",
+  },
+  German: {
+    "hello": "hallo", "hi": "hallo", "thank you": "danke", "thanks": "danke", "bye": "tschüss", "goodbye": "auf wiedersehen",
+    "good morning": "guten morgen", "good afternoon": "guten tag", "good evening": "guten abend", "good night": "gute nacht",
+    "how are you": "wie geht es ihnen?", "please": "bitte", "yes": "ja", "no": "nein",
+    "sorry": "entschuldigung", "excuse me": "entschuldigen sie", "welcome": "willkommen", "help": "hilfe",
+    "i love you": "ich liebe dich", "friend": "freund", "water": "wasser", "food": "essen",
+  },
+  Japanese: {
+    "hello": "こんにちは", "hi": "やあ", "thank you": "ありがとう", "thanks": "ありがとう", "bye": "さようなら", "goodbye": "さようなら",
+    "good morning": "おはようございます", "good afternoon": "こんにちは", "good evening": "こんばんは", "good night": "おやすみなさい",
+    "how are you": "お元気ですか？", "please": "お願いします", "yes": "はい", "no": "いいえ",
+    "sorry": "すみません", "excuse me": "すみません", "welcome": "ようこそ", "help": "助けて",
+    "i love you": "愛してる", "friend": "友達", "water": "水", "food": "食べ物",
+  },
+  Korean: {
+    "hello": "안녕하세요", "hi": "안녕", "thank you": "감사합니다", "thanks": "고마워요", "bye": "안녕히 가세요", "goodbye": "안녕히 가세요",
+    "good morning": "좋은 아침", "good afternoon": "좋은 오후", "good evening": "좋은 저녁", "good night": "안녕히 주무세요",
+    "how are you": "어떻게 지내세요?", "please": "제발", "yes": "네", "no": "아니요",
+    "sorry": "죄송합니다", "excuse me": "실례합니다", "welcome": "환영합니다", "help": "도와주세요",
+    "i love you": "사랑해요", "friend": "친구", "water": "물", "food": "음식",
+  },
 };
 
 const simpleTranslate = (text: string, targetLang: string): string => {
