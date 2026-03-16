@@ -23,7 +23,7 @@ const features = [
 const Home = () => (
   <div className="overflow-hidden">
     {/* Hero */}
-    <section className="relative min-h-[90vh] flex items-center justify-center px-6">
+    <section className="relative min-h-[90vh] flex items-center justify-center px-6 pt-20">
       <div className="max-w-5xl mx-auto text-center">
         <motion.div
           initial="hidden"
