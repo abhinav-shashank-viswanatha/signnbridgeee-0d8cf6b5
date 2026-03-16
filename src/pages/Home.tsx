@@ -45,7 +45,7 @@ const Home = () => (
             className="text-5xl sm:text-6xl lg:text-7xl font-extrabold tracking-tight leading-[1.1]"
           >
             Breaking barriers{" "}
-            <span className="gradient-text">between every voice</span>
+            <span className="gradient-text">between human communication</span>
           </motion.h1>
 
           <motion.p

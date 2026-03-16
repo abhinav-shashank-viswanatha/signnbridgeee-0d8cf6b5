@@ -22,10 +22,9 @@ const Navbar = () => {
       <nav className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
         <Link to="/" className="flex items-center gap-2.5">
           <div className="w-8 h-8 rounded-lg gradient-primary flex items-center justify-center">
-            <span className="text-sm font-bold text-primary-foreground">S</span>
+            <Mic className="h-4 w-4 text-primary-foreground" />
           </div>
           <span className="text-lg font-bold tracking-tight text-foreground">SignBridge</span>
-          <Mic className="h-4.5 w-4.5 text-primary" />
         </Link>
 
         {/* Desktop */}
