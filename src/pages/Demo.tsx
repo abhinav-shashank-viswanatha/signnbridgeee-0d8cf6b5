@@ -1,20 +1,33 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Mic, MicOff, Camera, Type, Volume2, Hand, ChevronDown, ArrowLeftRight, Loader2, Square } from "lucide-react";
+import { Mic, MicOff, Camera, Type, Volume2, Hand, ChevronDown, ArrowLeftRight, Loader2, Square, Play, Pause, RotateCcw } from "lucide-react";
 
 type InputMode = "text" | "speech" | "sign";
 type OutputMode = "text" | "speech" | "sign";
-type Status = "ready" | "listening" | "detecting" | "translating";
+type Status = "ready" | "listening" | "detecting" | "translating" | "processing" | "error";
 
-const languages = [
-  "English", "Spanish", "French", "German", "Italian", "Portuguese",
-  "Arabic", "Hindi", "Bengali", "Tamil", "Telugu", "Mandarin",
-  "Japanese", "Korean", "Russian", "Dutch", "Turkish", "Vietnamese",
-  "Thai", "Indonesian", "Malay", "Swahili", "Urdu", "Punjabi",
-  "Marathi", "Gujarati", "Kannada", "Malayalam", "ASL",
+const languageOptions = [
+  { label: "English", code: "en" },
+  { label: "Spanish", code: "es" },
+  { label: "French", code: "fr" },
+  { label: "German", code: "de" },
+  { label: "Hindi", code: "hi" },
+  { label: "Arabic", code: "ar" },
+  { label: "Portuguese", code: "pt" },
+  { label: "Russian", code: "ru" },
+  { label: "Japanese", code: "ja" },
+  { label: "Korean", code: "ko" },
+  { label: "Italian", code: "it" },
+  { label: "Dutch", code: "nl" },
+  { label: "Turkish", code: "tr" },
+  { label: "Chinese", code: "zh" },
+  { label: "Indonesian", code: "id" },
 ];
 
-// Simple demo translations
+const langCodeMap: Record<string, string> = {};
+languageOptions.forEach((l) => { langCodeMap[l.label] = l.code; });
+
+// Fallback local dictionary
 const demoTranslations: Record<string, Record<string, string>> = {
   Spanish: {
     "hello": "hola", "hi": "hola", "thank you": "gracias", "thanks": "gracias", "bye": "adiós", "goodbye": "adiós",
@@ -31,8 +44,6 @@ const demoTranslations: Record<string, Record<string, string>> = {
     "how are you": "comment allez-vous?", "please": "s'il vous plaît", "yes": "oui", "no": "non",
     "sorry": "désolé", "excuse me": "excusez-moi", "welcome": "bienvenue", "help": "aide",
     "i love you": "je t'aime", "friend": "ami", "water": "eau", "food": "nourriture",
-    "my name is": "je m'appelle", "nice to meet you": "enchanté", "see you later": "à plus tard",
-    "i dont understand": "je ne comprends pas", "can you help me": "pouvez-vous m'aider?", "where is": "où est?",
   },
   Hindi: {
     "hello": "नमस्ते", "hi": "नमस्ते", "thank you": "धन्यवाद", "thanks": "शुक्रिया", "bye": "अलविदा", "goodbye": "अलविदा",
@@ -40,45 +51,50 @@ const demoTranslations: Record<string, Record<string, string>> = {
     "how are you": "आप कैसे हैं?", "please": "कृपया", "yes": "हाँ", "no": "नहीं",
     "sorry": "माफ़ कीजिए", "excuse me": "क्षमा करें", "welcome": "स्वागत है", "help": "मदद",
     "i love you": "मैं तुमसे प्यार करता हूँ", "friend": "दोस्त", "water": "पानी", "food": "खाना",
-    "my name is": "मेरा नाम है", "nice to meet you": "आपसे मिलकर खुशी हुई", "see you later": "फिर मिलेंगे",
-    "i dont understand": "मुझे समझ नहीं आया", "can you help me": "क्या आप मेरी मदद कर सकते हैं?", "where is": "कहाँ है?",
-  },
-  Arabic: {
-    "hello": "مرحبا", "hi": "أهلاً", "thank you": "شكرا", "thanks": "شكرا", "bye": "مع السلامة", "goodbye": "مع السلامة",
-    "good morning": "صباح الخير", "good afternoon": "مساء الخير", "good evening": "مساء الخير", "good night": "تصبح على خير",
-    "how are you": "كيف حالك؟", "please": "من فضلك", "yes": "نعم", "no": "لا",
-    "sorry": "آسف", "excuse me": "عفواً", "welcome": "أهلاً وسهلاً", "help": "مساعدة",
-    "i love you": "أحبك", "friend": "صديق", "water": "ماء", "food": "طعام",
   },
   German: {
     "hello": "hallo", "hi": "hallo", "thank you": "danke", "thanks": "danke", "bye": "tschüss", "goodbye": "auf wiedersehen",
     "good morning": "guten morgen", "good afternoon": "guten tag", "good evening": "guten abend", "good night": "gute nacht",
     "how are you": "wie geht es ihnen?", "please": "bitte", "yes": "ja", "no": "nein",
-    "sorry": "entschuldigung", "excuse me": "entschuldigen sie", "welcome": "willkommen", "help": "hilfe",
-    "i love you": "ich liebe dich", "friend": "freund", "water": "wasser", "food": "essen",
+    "sorry": "entschuldigung", "welcome": "willkommen", "help": "hilfe", "i love you": "ich liebe dich",
+  },
+  Arabic: {
+    "hello": "مرحبا", "hi": "أهلاً", "thank you": "شكرا", "thanks": "شكرا", "bye": "مع السلامة", "goodbye": "مع السلامة",
+    "good morning": "صباح الخير", "good afternoon": "مساء الخير", "good evening": "مساء الخير", "good night": "تصبح على خير",
+    "how are you": "كيف حالك؟", "please": "من فضلك", "yes": "نعم", "no": "لا",
+    "sorry": "آسف", "welcome": "أهلاً وسهلاً", "help": "مساعدة", "i love you": "أحبك",
   },
   Japanese: {
     "hello": "こんにちは", "hi": "やあ", "thank you": "ありがとう", "thanks": "ありがとう", "bye": "さようなら", "goodbye": "さようなら",
     "good morning": "おはようございます", "good afternoon": "こんにちは", "good evening": "こんばんは", "good night": "おやすみなさい",
     "how are you": "お元気ですか？", "please": "お願いします", "yes": "はい", "no": "いいえ",
-    "sorry": "すみません", "excuse me": "すみません", "welcome": "ようこそ", "help": "助けて",
-    "i love you": "愛してる", "friend": "友達", "water": "水", "food": "食べ物",
+    "sorry": "すみません", "welcome": "ようこそ", "help": "助けて", "i love you": "愛してる",
   },
   Korean: {
     "hello": "안녕하세요", "hi": "안녕", "thank you": "감사합니다", "thanks": "고마워요", "bye": "안녕히 가세요", "goodbye": "안녕히 가세요",
     "good morning": "좋은 아침", "good afternoon": "좋은 오후", "good evening": "좋은 저녁", "good night": "안녕히 주무세요",
     "how are you": "어떻게 지내세요?", "please": "제발", "yes": "네", "no": "아니요",
-    "sorry": "죄송합니다", "excuse me": "실례합니다", "welcome": "환영합니다", "help": "도와주세요",
-    "i love you": "사랑해요", "friend": "친구", "water": "물", "food": "음식",
+    "sorry": "죄송합니다", "welcome": "환영합니다", "help": "도와주세요", "i love you": "사랑해요",
   },
 };
 
-const simpleTranslate = (text: string, targetLang: string): string => {
+const localTranslate = (text: string, targetLang: string): string | null => {
   const dict = demoTranslations[targetLang];
-  if (!dict) return `[${targetLang}] ${text}`;
+  if (!dict) return null;
   const lower = text.toLowerCase().replace(/[?.!,]/g, "").trim();
-  return dict[lower] || `[${targetLang}] ${text}`;
+  return dict[lower] || null;
 };
+
+const signGestureSequence = [
+  { emoji: "👋", word: "Hello", delay: 0 },
+  { emoji: "🙏", word: "Thank you", delay: 1 },
+  { emoji: "👍", word: "Yes", delay: 2 },
+  { emoji: "✋", word: "No", delay: 3 },
+  { emoji: "🤲", word: "Please", delay: 4 },
+  { emoji: "🆘", word: "Help", delay: 5 },
+  { emoji: "❤️", word: "Love", delay: 6 },
+  { emoji: "👊", word: "Strong", delay: 7 },
+];
 
 const signGestures = ["Hello 👋", "Thank you 🙏", "Yes 👍", "No ✋", "Please 🤲", "Help 🆘"];
 
@@ -93,10 +109,60 @@ const Demo = () => {
   const [translatedText, setTranslatedText] = useState("");
   const [showSourceDropdown, setShowSourceDropdown] = useState(false);
   const [showTargetDropdown, setShowTargetDropdown] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [signAnimIndex, setSignAnimIndex] = useState(0);
+  const [translationSource, setTranslationSource] = useState<"api" | "local" | "">("");
 
   const recognitionRef = useRef<any>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const signIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const isTranslatingRef = useRef(false);
+
+  // LibreTranslate API call
+  const apiTranslate = async (text: string, sourceLangLabel: string, targetLangLabel: string): Promise<string> => {
+    const sourceCode = langCodeMap[sourceLangLabel] || "en";
+    const targetCode = langCodeMap[targetLangLabel] || "es";
+
+    // Try multiple LibreTranslate endpoints
+    const endpoints = [
+      "https://libretranslate.de/translate",
+      "https://libretranslate.com/translate",
+    ];
+
+    for (const endpoint of endpoints) {
+      try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 8000);
+
+        const response = await fetch(endpoint, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            q: text,
+            source: sourceCode,
+            target: targetCode,
+            format: "text",
+          }),
+          signal: controller.signal,
+        });
+
+        clearTimeout(timeout);
+
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+        const data = await response.json();
+        if (data.translatedText) {
+          return data.translatedText;
+        }
+        throw new Error("No translatedText in response");
+      } catch {
+        continue;
+      }
+    }
+    throw new Error("All API endpoints failed");
+  };
 
   // Web Speech API
   const startListening = useCallback(() => {
@@ -108,7 +174,7 @@ const Demo = () => {
     const recognition = new SpeechRecognition();
     recognition.continuous = true;
     recognition.interimResults = true;
-    recognition.lang = "en-US";
+    recognition.lang = langCodeMap[sourceLang] || "en-US";
 
     recognition.onresult = (event: any) => {
       let finalTranscript = "";
@@ -123,20 +189,16 @@ const Demo = () => {
       setTranscript(finalTranscript || interimTranscript);
     };
 
-    recognition.onerror = () => {
-      setStatus("ready");
-    };
-
-    recognition.onend = () => {
-      setStatus("ready");
-    };
+    recognition.onerror = () => setStatus("ready");
+    recognition.onend = () => setStatus("ready");
 
     recognitionRef.current = recognition;
     recognition.start();
     setStatus("listening");
     setTranscript("");
     setTranslatedText("");
-  }, []);
+    setErrorMsg("");
+  }, [sourceLang]);
 
   const stopListening = useCallback(() => {
     recognitionRef.current?.stop();
@@ -152,12 +214,10 @@ const Demo = () => {
         videoRef.current.srcObject = stream;
       }
       setStatus("detecting");
-      // Simulate sign detection
-      const interval = setInterval(() => {
+      signIntervalRef.current = setInterval(() => {
         const gesture = signGestures[Math.floor(Math.random() * signGestures.length)];
         setTranscript(gesture);
       }, 3000);
-      return () => clearInterval(interval);
     } catch {
       setTranscript("Camera access denied or not available.");
     }
@@ -166,6 +226,8 @@ const Demo = () => {
   const stopCamera = useCallback(() => {
     streamRef.current?.getTracks().forEach((t) => t.stop());
     streamRef.current = null;
+    if (signIntervalRef.current) clearInterval(signIntervalRef.current);
+    signIntervalRef.current = null;
     setStatus("ready");
   }, []);
 
@@ -173,41 +235,111 @@ const Demo = () => {
     return () => {
       recognitionRef.current?.stop();
       streamRef.current?.getTracks().forEach((t) => t.stop());
+      if (signIntervalRef.current) clearInterval(signIntervalRef.current);
+      speechSynthesis.cancel();
     };
   }, []);
 
-  // Translation
-  const handleTranslate = useCallback(() => {
+  // Sign animation cycling
+  useEffect(() => {
+    if (outputMode === "sign" && translatedText) {
+      const interval = setInterval(() => {
+        setSignAnimIndex((prev) => (prev + 1) % signGestureSequence.length);
+      }, 1500);
+      return () => clearInterval(interval);
+    }
+  }, [outputMode, translatedText]);
+
+  // Translation pipeline
+  const handleTranslate = useCallback(async () => {
+    if (isTranslatingRef.current) return;
     const textToTranslate = inputMode === "text" ? inputText : transcript;
     if (!textToTranslate.trim()) return;
 
+    isTranslatingRef.current = true;
     setStatus("translating");
-    setTimeout(() => {
-      const result = simpleTranslate(textToTranslate, targetLang);
+    setErrorMsg("");
+    setTranslatedText("");
+
+    try {
+      // Try API first
+      const result = await apiTranslate(textToTranslate, sourceLang, targetLang);
       setTranslatedText(result);
+      setTranslationSource("api");
       setStatus("ready");
 
       if (outputMode === "speech") {
-        const utterance = new SpeechSynthesisUtterance(result);
-        utterance.rate = 0.9;
-        speechSynthesis.speak(utterance);
+        speakText(result);
       }
-    }, 800);
-  }, [inputMode, inputText, transcript, targetLang, outputMode]);
+    } catch {
+      // Fallback to local dictionary
+      const localResult = localTranslate(textToTranslate, targetLang);
+      if (localResult) {
+        setTranslatedText(localResult);
+        setTranslationSource("local");
+        setStatus("ready");
+
+        if (outputMode === "speech") {
+          speakText(localResult);
+        }
+      } else {
+        setErrorMsg("Translation failed. Try again.");
+        setStatus("error");
+        setTimeout(() => setStatus("ready"), 2000);
+      }
+    } finally {
+      isTranslatingRef.current = false;
+    }
+  }, [inputMode, inputText, transcript, sourceLang, targetLang, outputMode]);
+
+  const speakText = (text: string) => {
+    speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.rate = 0.9;
+    const targetCode = langCodeMap[targetLang];
+    if (targetCode) utterance.lang = targetCode;
+    utterance.onstart = () => setIsSpeaking(true);
+    utterance.onend = () => setIsSpeaking(false);
+    utterance.onerror = () => setIsSpeaking(false);
+    speechSynthesis.speak(utterance);
+  };
+
+  const toggleSpeech = () => {
+    if (isSpeaking) {
+      speechSynthesis.cancel();
+      setIsSpeaking(false);
+    } else if (translatedText) {
+      speakText(translatedText);
+    }
+  };
 
   const handleSwapLangs = () => {
     setSourceLang(targetLang);
     setTargetLang(sourceLang);
   };
 
+  const handleReset = () => {
+    setInputText("");
+    setTranscript("");
+    setTranslatedText("");
+    setErrorMsg("");
+    setStatus("ready");
+    setTranslationSource("");
+    speechSynthesis.cancel();
+    setIsSpeaking(false);
+  };
+
   const statusConfig: Record<Status, { color: string; label: string }> = {
     ready: { color: "bg-muted-foreground", label: "Ready" },
     listening: { color: "bg-primary", label: "Listening..." },
     detecting: { color: "bg-primary", label: "Detecting signs..." },
-    translating: { color: "bg-accent-live", label: "Translating..." },
+    translating: { color: "bg-accent", label: "Translating..." },
+    processing: { color: "bg-secondary", label: "Processing..." },
+    error: { color: "bg-destructive", label: "Error" },
   };
 
   const currentStatus = statusConfig[status];
+  const canTranslate = (inputMode === "text" ? inputText.trim() : transcript.trim()) && status !== "translating";
 
   return (
     <div className="py-12 px-6 min-h-[calc(100svh-4rem)]">
@@ -253,10 +385,13 @@ const Demo = () => {
               </button>
               {showSourceDropdown && (
                 <div className="absolute top-full mt-1 left-0 z-50 glass-strong rounded-xl py-2 min-w-[160px] max-h-64 overflow-y-auto shadow-card">
-                  {languages.map((l) => (
-                    <button key={l} onClick={() => { setSourceLang(l); setShowSourceDropdown(false); }}
-                      className={`w-full text-left px-4 py-2 text-sm hover:bg-muted transition-colors ${l === sourceLang ? "text-primary font-medium" : "text-foreground"}`}
-                    >{l}</button>
+                  {languageOptions.map((l) => (
+                    <button key={l.code} onClick={() => { setSourceLang(l.label); setShowSourceDropdown(false); }}
+                      className={`w-full text-left px-4 py-2 text-sm hover:bg-muted transition-colors ${l.label === sourceLang ? "text-primary font-medium" : "text-foreground"}`}
+                    >
+                      {l.label}
+                      <span className="ml-2 text-muted-foreground text-xs">{l.code}</span>
+                    </button>
                   ))}
                 </div>
               )}
@@ -273,16 +408,43 @@ const Demo = () => {
               </button>
               {showTargetDropdown && (
                 <div className="absolute top-full mt-1 right-0 z-50 glass-strong rounded-xl py-2 min-w-[160px] max-h-64 overflow-y-auto shadow-card">
-                  {languages.map((l) => (
-                    <button key={l} onClick={() => { setTargetLang(l); setShowTargetDropdown(false); }}
-                      className={`w-full text-left px-4 py-2 text-sm hover:bg-muted transition-colors ${l === targetLang ? "text-primary font-medium" : "text-foreground"}`}
-                    >{l}</button>
+                  {languageOptions.map((l) => (
+                    <button key={l.code} onClick={() => { setTargetLang(l.label); setShowTargetDropdown(false); }}
+                      className={`w-full text-left px-4 py-2 text-sm hover:bg-muted transition-colors ${l.label === targetLang ? "text-primary font-medium" : "text-foreground"}`}
+                    >
+                      {l.label}
+                      <span className="ml-2 text-muted-foreground text-xs">{l.code}</span>
+                    </button>
                   ))}
                 </div>
               )}
             </div>
           </div>
+
+          {/* Reset button */}
+          <button
+            onClick={handleReset}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-lg glass text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <RotateCcw className="h-3.5 w-3.5" /> Reset
+          </button>
         </motion.div>
+
+        {/* Error message */}
+        <AnimatePresence>
+          {errorMsg && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="flex justify-center mb-6"
+            >
+              <div className="px-4 py-2 rounded-lg bg-destructive/10 text-destructive text-sm font-medium">
+                {errorMsg}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Main panels */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -308,8 +470,9 @@ const Demo = () => {
                     setInputMode(tab.mode);
                     setTranscript("");
                     setTranslatedText("");
+                    setErrorMsg("");
                   }}
-                  className={`flex-1 flex items-center justify-center gap-2 py-3.5 text-sm font-medium transition-colors ${
+                  className={`flex-1 flex items-center justify-center gap-2 py-3.5 text-sm font-medium transition-all ${
                     inputMode === tab.mode
                       ? "text-primary border-b-2 border-primary bg-primary/5"
                       : "text-muted-foreground hover:text-foreground"
@@ -330,13 +493,19 @@ const Demo = () => {
                     <textarea
                       value={inputText}
                       onChange={(e) => setInputText(e.target.value)}
-                      placeholder="Start typing here..."
+                      placeholder="Start typing here... e.g. Hello, Thank you, Good morning"
                       className="flex-1 min-h-[180px] p-4 rounded-xl bg-card text-foreground text-base resize-none focus:outline-none focus:ring-2 focus:ring-primary/30 placeholder:text-muted-foreground/50 transition-shadow"
                       onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleTranslate(); } }}
+                      disabled={status === "translating"}
                     />
-                    <p className="text-xs text-muted-foreground">
-                      Press <kbd className="px-1.5 py-0.5 rounded bg-muted font-mono text-[11px]">Enter</kbd> to translate
-                    </p>
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs text-muted-foreground">
+                        Press <kbd className="px-1.5 py-0.5 rounded bg-muted font-mono text-[11px]">Enter</kbd> to translate
+                      </p>
+                      {inputText && (
+                        <span className="text-xs text-muted-foreground">{inputText.length} chars</span>
+                      )}
+                    </div>
                   </motion.div>
                 )}
 
@@ -354,9 +523,10 @@ const Demo = () => {
                     </div>
                     <button
                       onClick={status === "listening" ? stopListening : startListening}
+                      disabled={status === "translating"}
                       className={`w-16 h-16 rounded-full flex items-center justify-center transition-all ${
                         status === "listening"
-                          ? "gradient-primary shadow-glow"
+                          ? "gradient-primary shadow-glow animate-pulse-ring"
                           : "bg-muted hover:bg-muted/80"
                       }`}
                     >
@@ -366,10 +536,14 @@ const Demo = () => {
                       {status === "listening" ? "Listening — tap to stop" : "Tap the microphone to start"}
                     </p>
                     {transcript && (
-                      <div className="w-full p-4 rounded-xl bg-card text-foreground text-sm">
+                      <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="w-full p-4 rounded-xl bg-card text-foreground text-sm"
+                      >
                         <span className="text-xs text-muted-foreground block mb-1">Transcript:</span>
                         {transcript}
-                      </div>
+                      </motion.div>
                     )}
                   </motion.div>
                 )}
@@ -390,13 +564,20 @@ const Demo = () => {
                         </div>
                       )}
                       {status === "detecting" && (
-                        <div className="absolute top-2 left-2 px-2 py-1 rounded-md bg-primary/80 text-primary-foreground text-xs font-mono">
-                          LIVE
-                        </div>
+                        <>
+                          <div className="absolute top-2 left-2 px-2 py-1 rounded-md bg-primary/80 text-primary-foreground text-xs font-mono flex items-center gap-1">
+                            <span className="w-1.5 h-1.5 rounded-full bg-destructive animate-pulse" />
+                            LIVE
+                          </div>
+                          <div className="absolute bottom-2 left-2 right-2 px-2 py-1 rounded-md bg-background/70 text-foreground text-xs font-mono text-center backdrop-blur-sm">
+                            Detecting signs...
+                          </div>
+                        </>
                       )}
                     </div>
                     <button
                       onClick={status === "detecting" ? stopCamera : startCamera}
+                      disabled={status === "translating"}
                       className={`px-6 py-2.5 rounded-xl text-sm font-medium transition-all ${
                         status === "detecting"
                           ? "gradient-primary text-primary-foreground shadow-glow"
@@ -410,10 +591,14 @@ const Demo = () => {
                       )}
                     </button>
                     {transcript && (
-                      <div className="w-full p-4 rounded-xl bg-card text-foreground text-sm">
+                      <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="w-full p-4 rounded-xl bg-card text-foreground text-sm"
+                      >
                         <span className="text-xs text-muted-foreground block mb-1">Detected gesture:</span>
                         {transcript}
-                      </div>
+                      </motion.div>
                     )}
                   </motion.div>
                 )}
@@ -437,8 +622,17 @@ const Demo = () => {
               ]).map((tab) => (
                 <button
                   key={tab.mode}
-                  onClick={() => setOutputMode(tab.mode)}
-                  className={`flex-1 flex items-center justify-center gap-2 py-3.5 text-sm font-medium transition-colors ${
+                  onClick={() => {
+                    setOutputMode(tab.mode);
+                    if (tab.mode === "speech" && translatedText) {
+                      speakText(translatedText);
+                    }
+                    if (tab.mode !== "speech") {
+                      speechSynthesis.cancel();
+                      setIsSpeaking(false);
+                    }
+                  }}
+                  className={`flex-1 flex items-center justify-center gap-2 py-3.5 text-sm font-medium transition-all ${
                     outputMode === tab.mode
                       ? "text-primary border-b-2 border-primary bg-primary/5"
                       : "text-muted-foreground hover:text-foreground"
@@ -452,9 +646,18 @@ const Demo = () => {
 
             {/* Output content */}
             <div className="p-6 min-h-[300px] flex flex-col">
-              <span className="text-xs font-mono text-muted-foreground uppercase tracking-wider mb-4">
-                Translation Output — {outputMode}
-              </span>
+              <div className="flex items-center justify-between mb-4">
+                <span className="text-xs font-mono text-muted-foreground uppercase tracking-wider">
+                  Translation Output — {outputMode}
+                </span>
+                {translationSource && (
+                  <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full ${
+                    translationSource === "api" ? "bg-primary/10 text-primary" : "bg-secondary/10 text-secondary"
+                  }`}>
+                    {translationSource === "api" ? "API" : "Offline"}
+                  </span>
+                )}
+              </div>
 
               <div className="flex-1 flex items-center justify-center">
                 <AnimatePresence mode="wait">
@@ -466,30 +669,82 @@ const Demo = () => {
                   ) : translatedText ? (
                     <motion.div key="result" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="w-full">
                       {outputMode === "text" && (
-                        <p className="text-2xl lg:text-3xl font-medium text-foreground leading-relaxed" style={{ textWrap: "balance" } as React.CSSProperties}>
-                          {translatedText}
-                        </p>
+                        <div className="space-y-4">
+                          <p className="text-2xl lg:text-3xl font-medium text-foreground leading-relaxed" style={{ textWrap: "balance" } as React.CSSProperties}>
+                            {translatedText}
+                          </p>
+                          <div className="flex items-center gap-2 pt-2">
+                            <button
+                              onClick={() => speakText(translatedText)}
+                              className="p-2 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                              title="Listen"
+                            >
+                              <Volume2 className="h-4 w-4" />
+                            </button>
+                            <button
+                              onClick={() => navigator.clipboard.writeText(translatedText)}
+                              className="px-3 py-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors text-xs font-mono"
+                              title="Copy"
+                            >
+                              Copy
+                            </button>
+                          </div>
+                        </div>
                       )}
                       {outputMode === "speech" && (
-                        <div className="flex flex-col items-center gap-4">
+                        <div className="flex flex-col items-center gap-6">
                           <p className="text-xl font-medium text-foreground text-center">{translatedText}</p>
-                          <button
-                            onClick={() => {
-                              const u = new SpeechSynthesisUtterance(translatedText);
-                              u.rate = 0.9;
-                              speechSynthesis.speak(u);
-                            }}
-                            className="px-6 py-3 rounded-xl gradient-primary text-primary-foreground font-medium flex items-center gap-2 shadow-glow hover:opacity-90 transition-opacity"
-                          >
-                            <Volume2 className="h-5 w-5" /> Play Audio
-                          </button>
+                          {/* Audio waveform */}
+                          <div className="flex items-center justify-center gap-[2px] h-12">
+                            {Array.from({ length: 32 }).map((_, i) => (
+                              <motion.div
+                                key={i}
+                                className="w-[2px] rounded-full bg-primary"
+                                animate={isSpeaking ? { height: [4, Math.random() * 32 + 8, 4], opacity: [0.3, 1, 0.3] } : { height: 4, opacity: 0.2 }}
+                                transition={isSpeaking ? { duration: 0.4 + Math.random() * 0.4, repeat: Infinity, repeatType: "reverse", delay: i * 0.03 } : { duration: 0.3 }}
+                              />
+                            ))}
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <button
+                              onClick={toggleSpeech}
+                              className="px-6 py-3 rounded-xl gradient-primary text-primary-foreground font-medium flex items-center gap-2 shadow-glow hover:opacity-90 transition-opacity"
+                            >
+                              {isSpeaking ? <><Pause className="h-5 w-5" /> Pause</> : <><Play className="h-5 w-5" /> Play Audio</>}
+                            </button>
+                          </div>
                         </div>
                       )}
                       {outputMode === "sign" && (
-                        <div className="flex flex-col items-center gap-4">
-                          <div className="text-6xl animate-float">🤟</div>
+                        <div className="flex flex-col items-center gap-6">
+                          <div className="relative">
+                            <AnimatePresence mode="wait">
+                              <motion.div
+                                key={signAnimIndex}
+                                initial={{ scale: 0.5, opacity: 0, rotateY: -90 }}
+                                animate={{ scale: 1, opacity: 1, rotateY: 0 }}
+                                exit={{ scale: 0.5, opacity: 0, rotateY: 90 }}
+                                transition={{ duration: 0.4, ease: "easeOut" }}
+                                className="text-7xl"
+                              >
+                                {signGestureSequence[signAnimIndex].emoji}
+                              </motion.div>
+                            </AnimatePresence>
+                          </div>
                           <p className="text-lg font-medium text-foreground">{translatedText}</p>
-                          <p className="text-xs text-muted-foreground">Sign language animation representation</p>
+                          <div className="flex items-center gap-2">
+                            {signGestureSequence.slice(0, 6).map((g, i) => (
+                              <motion.span
+                                key={i}
+                                className={`text-2xl cursor-pointer transition-opacity ${i === signAnimIndex % 6 ? "opacity-100" : "opacity-30"}`}
+                                whileHover={{ scale: 1.2 }}
+                                onClick={() => setSignAnimIndex(i)}
+                              >
+                                {g.emoji}
+                              </motion.span>
+                            ))}
+                          </div>
+                          <p className="text-xs text-muted-foreground">Sign language gesture sequence</p>
                         </div>
                       )}
                     </motion.div>
@@ -513,7 +768,7 @@ const Demo = () => {
         >
           <button
             onClick={handleTranslate}
-            disabled={status === "translating" || (!inputText.trim() && !transcript.trim())}
+            disabled={!canTranslate}
             className="px-10 py-4 rounded-xl gradient-primary text-primary-foreground font-semibold text-base shadow-glow hover:opacity-90 transition-all disabled:opacity-30 disabled:cursor-not-allowed flex items-center gap-2"
           >
             {status === "translating" ? (
