@@ -242,7 +242,18 @@ const Demo = () => {
   const handleTranslate = useCallback(async () => {
     if (isTranslatingRef.current) return;
     const textToTranslate = inputMode === "text" ? inputText : transcript;
-    if (!textToTranslate.trim()) return;
+    if (!textToTranslate.trim()) {
+      setErrorMsg("Enter text first");
+      setStatus("error");
+      setTimeout(() => setStatus("ready"), 2000);
+      return;
+    }
+    if (!navigator.onLine) {
+      setErrorMsg("No internet connection");
+      setStatus("error");
+      setTimeout(() => setStatus("ready"), 2000);
+      return;
+    }
 
     isTranslatingRef.current = true;
     setStatus("translating");
