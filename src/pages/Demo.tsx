@@ -122,46 +122,34 @@ const Demo = () => {
 
   // LibreTranslate API call
   const apiTranslate = async (text: string, sourceLangLabel: string, targetLangLabel: string): Promise<string> => {
-    const sourceCode = langCodeMap[sourceLangLabel] || "en";
     const targetCode = langCodeMap[targetLangLabel] || "es";
 
-    // Try multiple LibreTranslate endpoints
-    const endpoints = [
-      "https://libretranslate.de/translate",
-      "https://libretranslate.com/translate",
-    ];
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10000);
 
-    for (const endpoint of endpoints) {
-      try {
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 8000);
+    const response = await fetch("https://translate.argosopentech.com/translate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        q: text,
+        source: "auto",
+        target: targetCode,
+        format: "text",
+      }),
+      signal: controller.signal,
+    });
 
-        const response = await fetch(endpoint, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            q: text,
-            source: sourceCode,
-            target: targetCode,
-            format: "text",
-          }),
-          signal: controller.signal,
-        });
+    clearTimeout(timeout);
 
-        clearTimeout(timeout);
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const data = await response.json();
+    console.log("Translation API response:", data);
 
-        const data = await response.json();
-        if (data.translatedText) {
-          return data.translatedText;
-        }
-        throw new Error("No translatedText in response");
-      } catch {
-        continue;
-      }
+    if (data.translatedText) {
+      return data.translatedText;
     }
-    throw new Error("All API endpoints failed");
+    throw new Error("Invalid response: no translatedText");
   };
 
   // Web Speech API
