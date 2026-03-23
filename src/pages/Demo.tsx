@@ -200,25 +200,34 @@ const Demo = () => {
   const isTranslatingRef = useRef(false);
   const gestureTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Translation API
+  // Translation API with multiple fallback endpoints
   const apiTranslate = async (text: string, targetLangLabel: string): Promise<string> => {
     const targetCode = langCodeMap[targetLangLabel] || "es";
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 10000);
+    const endpoints = [
+      "https://translate.argosopentech.com/translate",
+      "https://libretranslate.de/translate",
+    ];
 
-    const response = await fetch("https://translate.argosopentech.com/translate", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ q: text, source: "auto", target: targetCode, format: "text" }),
-      signal: controller.signal,
-    });
-
-    clearTimeout(timeout);
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    const data = await response.json();
-    console.log("Translation API response:", data);
-    if (data.translatedText) return data.translatedText;
-    throw new Error("Invalid response");
+    for (const url of endpoints) {
+      try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 8000);
+        const response = await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ q: text, source: "auto", target: targetCode, format: "text" }),
+          signal: controller.signal,
+        });
+        clearTimeout(timeout);
+        if (!response.ok) continue;
+        const data = await response.json();
+        console.log("Translation API response:", data);
+        if (data.translatedText) return data.translatedText;
+      } catch {
+        console.log(`Endpoint ${url} failed, trying next...`);
+      }
+    }
+    throw new Error("All translation endpoints failed");
   };
 
   // Speech recognition
