@@ -96,7 +96,79 @@ const signGestureSequence = [
   { emoji: "👊", word: "Strong", delay: 7 },
 ];
 
-const signGestures = ["Hello 👋", "Thank you 🙏", "Yes 👍", "No ✋", "Please 🤲", "Help 🆘"];
+// ----- MediaPipe helpers -----
+const MEDIAPIPE_CDN = "https://cdn.jsdelivr.net/npm/@mediapipe";
+
+function loadScript(src: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (document.querySelector(`script[src="${src}"]`)) { resolve(); return; }
+    const s = document.createElement("script");
+    s.src = src;
+    s.onload = () => resolve();
+    s.onerror = () => reject(new Error(`Failed to load ${src}`));
+    document.head.appendChild(s);
+  });
+}
+
+async function loadMediaPipe() {
+  await loadScript(`${MEDIAPIPE_CDN}/hands/hands.min.js`);
+  await loadScript(`${MEDIAPIPE_CDN}/camera_utils/camera_utils.js`);
+}
+
+function detectGesture(landmarks: any[]): string {
+  // landmarks is array of 21 hand landmarks {x,y,z}
+  const thumbTip = landmarks[4];
+  const indexTip = landmarks[8];
+  const middleTip = landmarks[12];
+  const ringTip = landmarks[16];
+  const pinkyTip = landmarks[20];
+  const wrist = landmarks[0];
+  const indexMcp = landmarks[5];
+  const middleMcp = landmarks[9];
+  const ringMcp = landmarks[13];
+  const pinkyMcp = landmarks[17];
+
+  const dist = (a: any, b: any) => Math.hypot(a.x - b.x, a.y - b.y);
+
+  const indexUp = indexTip.y < indexMcp.y;
+  const middleUp = middleTip.y < middleMcp.y;
+  const ringUp = ringTip.y < ringMcp.y;
+  const pinkyUp = pinkyTip.y < pinkyMcp.y;
+
+  const thumbIndexDist = dist(thumbTip, indexTip);
+
+  // Thumbs up: only thumb extended, fingers curled
+  if (!indexUp && !middleUp && !ringUp && !pinkyUp && thumbTip.y < wrist.y - 0.15) {
+    return "Yes";
+  }
+
+  // Open palm (all fingers up) → Hello
+  if (indexUp && middleUp && ringUp && pinkyUp) {
+    return "Hello";
+  }
+
+  // Peace sign (index + middle up)
+  if (indexUp && middleUp && !ringUp && !pinkyUp) {
+    return "Peace";
+  }
+
+  // OK sign (thumb + index close, others up)
+  if (thumbIndexDist < 0.06 && middleUp && ringUp && pinkyUp) {
+    return "OK";
+  }
+
+  // Fist (no fingers up) → No
+  if (!indexUp && !middleUp && !ringUp && !pinkyUp) {
+    return "No";
+  }
+
+  // Index only → Please
+  if (indexUp && !middleUp && !ringUp && !pinkyUp) {
+    return "Please";
+  }
+
+  return "Hello";
+}
 
 const Demo = () => {
   const [inputMode, setInputMode] = useState<InputMode>("text");
@@ -113,46 +185,40 @@ const Demo = () => {
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [signAnimIndex, setSignAnimIndex] = useState(0);
   const [translationSource, setTranslationSource] = useState<"api" | "local" | "">("");
+  const [mediaPipeLoaded, setMediaPipeLoaded] = useState(false);
+  const [detectedGesture, setDetectedGesture] = useState("");
 
   const recognitionRef = useRef<any>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
-  const signIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const handsRef = useRef<any>(null);
+  const mpCameraRef = useRef<any>(null);
   const isTranslatingRef = useRef(false);
+  const gestureTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // LibreTranslate API call
-  const apiTranslate = async (text: string, sourceLangLabel: string, targetLangLabel: string): Promise<string> => {
+  // Translation API
+  const apiTranslate = async (text: string, targetLangLabel: string): Promise<string> => {
     const targetCode = langCodeMap[targetLangLabel] || "es";
-
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 10000);
 
     const response = await fetch("https://translate.argosopentech.com/translate", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        q: text,
-        source: "auto",
-        target: targetCode,
-        format: "text",
-      }),
+      body: JSON.stringify({ q: text, source: "auto", target: targetCode, format: "text" }),
       signal: controller.signal,
     });
 
     clearTimeout(timeout);
-
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
-
     const data = await response.json();
     console.log("Translation API response:", data);
-
-    if (data.translatedText) {
-      return data.translatedText;
-    }
-    throw new Error("Invalid response: no translatedText");
+    if (data.translatedText) return data.translatedText;
+    throw new Error("Invalid response");
   };
 
-  // Web Speech API
+  // Speech recognition
   const startListening = useCallback(() => {
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SpeechRecognition) {
@@ -193,37 +259,161 @@ const Demo = () => {
     setStatus("ready");
   }, []);
 
-  // Camera
+  // Camera with MediaPipe Hands
   const startCamera = useCallback(async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
+      // Load MediaPipe if not already loaded
+      if (!mediaPipeLoaded) {
+        setStatus("processing");
+        try {
+          await loadMediaPipe();
+          setMediaPipeLoaded(true);
+        } catch (e) {
+          console.warn("MediaPipe load failed, using simulated detection", e);
+        }
+      }
+
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user", width: 640, height: 480 } });
       streamRef.current = stream;
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
       }
       setStatus("detecting");
-      signIntervalRef.current = setInterval(() => {
-        const gesture = signGestures[Math.floor(Math.random() * signGestures.length)];
-        setTranscript(gesture);
-      }, 3000);
+
+      // Try to initialize MediaPipe Hands
+      const mpHands = (window as any).Hands;
+      const mpCamera = (window as any).Camera;
+
+      if (mpHands && mpCamera && videoRef.current) {
+        const hands = new mpHands({
+          locateFile: (file: string) => `${MEDIAPIPE_CDN}/hands/${file}`,
+        });
+
+        hands.setOptions({
+          maxNumHands: 1,
+          modelComplexity: 1,
+          minDetectionConfidence: 0.7,
+          minTrackingConfidence: 0.7,
+        });
+
+        hands.onResults((results: any) => {
+          // Draw hand landmarks on canvas
+          if (canvasRef.current && videoRef.current) {
+            const ctx = canvasRef.current.getContext("2d");
+            if (ctx) {
+              canvasRef.current.width = videoRef.current.videoWidth || 640;
+              canvasRef.current.height = videoRef.current.videoHeight || 480;
+              ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+
+              if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+                const landmarks = results.multiHandLandmarks[0];
+
+                // Draw connections
+                ctx.strokeStyle = "hsl(var(--primary))";
+                ctx.lineWidth = 2;
+                const connections = [
+                  [0,1],[1,2],[2,3],[3,4],
+                  [0,5],[5,6],[6,7],[7,8],
+                  [5,9],[9,10],[10,11],[11,12],
+                  [9,13],[13,14],[14,15],[15,16],
+                  [13,17],[17,18],[18,19],[19,20],
+                  [0,17]
+                ];
+                connections.forEach(([a,b]) => {
+                  ctx.beginPath();
+                  ctx.moveTo(landmarks[a].x * canvasRef.current!.width, landmarks[a].y * canvasRef.current!.height);
+                  ctx.lineTo(landmarks[b].x * canvasRef.current!.width, landmarks[b].y * canvasRef.current!.height);
+                  ctx.stroke();
+                });
+
+                // Draw points
+                landmarks.forEach((lm: any) => {
+                  ctx.beginPath();
+                  ctx.arc(lm.x * canvasRef.current!.width, lm.y * canvasRef.current!.height, 4, 0, 2 * Math.PI);
+                  ctx.fillStyle = "hsl(var(--primary))";
+                  ctx.fill();
+                });
+
+                // Detect gesture
+                const gesture = detectGesture(landmarks);
+                setDetectedGesture(gesture);
+                setTranscript(gesture);
+
+                // Auto-translate after gesture is stable for 2 seconds
+                if (gestureTimeoutRef.current) clearTimeout(gestureTimeoutRef.current);
+                gestureTimeoutRef.current = setTimeout(() => {
+                  setInputText(gesture);
+                }, 1500);
+              }
+            }
+          }
+        });
+
+        handsRef.current = hands;
+
+        const camera = new mpCamera(videoRef.current, {
+          onFrame: async () => {
+            if (handsRef.current && videoRef.current) {
+              await handsRef.current.send({ image: videoRef.current });
+            }
+          },
+          width: 640,
+          height: 480,
+        });
+
+        mpCameraRef.current = camera;
+        camera.start();
+      } else {
+        // Fallback: simulated gesture detection if MediaPipe fails to load
+        console.log("Using simulated sign detection (MediaPipe not available)");
+        const gestures = ["Hello", "Thank you", "Yes", "No", "Please", "Help"];
+        let idx = 0;
+        const interval = setInterval(() => {
+          const gesture = gestures[idx % gestures.length];
+          setDetectedGesture(gesture);
+          setTranscript(gesture);
+          idx++;
+        }, 3000);
+        // Store interval for cleanup
+        (streamRef.current as any).__fallbackInterval = interval;
+      }
     } catch {
       setTranscript("Camera access denied or not available.");
+      setStatus("ready");
     }
-  }, []);
+  }, [mediaPipeLoaded]);
 
   const stopCamera = useCallback(() => {
-    streamRef.current?.getTracks().forEach((t) => t.stop());
-    streamRef.current = null;
-    if (signIntervalRef.current) clearInterval(signIntervalRef.current);
-    signIntervalRef.current = null;
+    if (mpCameraRef.current) {
+      try { mpCameraRef.current.stop(); } catch {}
+      mpCameraRef.current = null;
+    }
+    if (handsRef.current) {
+      try { handsRef.current.close(); } catch {}
+      handsRef.current = null;
+    }
+    if (streamRef.current) {
+      if ((streamRef.current as any).__fallbackInterval) {
+        clearInterval((streamRef.current as any).__fallbackInterval);
+      }
+      streamRef.current.getTracks().forEach((t) => t.stop());
+      streamRef.current = null;
+    }
+    if (gestureTimeoutRef.current) clearTimeout(gestureTimeoutRef.current);
+    setDetectedGesture("");
     setStatus("ready");
   }, []);
 
   useEffect(() => {
     return () => {
       recognitionRef.current?.stop();
-      streamRef.current?.getTracks().forEach((t) => t.stop());
-      if (signIntervalRef.current) clearInterval(signIntervalRef.current);
+      if (streamRef.current) {
+        if ((streamRef.current as any).__fallbackInterval) clearInterval((streamRef.current as any).__fallbackInterval);
+        streamRef.current.getTracks().forEach((t) => t.stop());
+      }
+      if (mpCameraRef.current) try { mpCameraRef.current.stop(); } catch {}
+      if (handsRef.current) try { handsRef.current.close(); } catch {}
+      if (gestureTimeoutRef.current) clearTimeout(gestureTimeoutRef.current);
       speechSynthesis.cancel();
     };
   }, []);
@@ -261,26 +451,18 @@ const Demo = () => {
     setTranslatedText("");
 
     try {
-      // Try API first
-      const result = await apiTranslate(textToTranslate, sourceLang, targetLang);
+      const result = await apiTranslate(textToTranslate, targetLang);
       setTranslatedText(result);
       setTranslationSource("api");
       setStatus("ready");
-
-      if (outputMode === "speech") {
-        speakText(result);
-      }
+      if (outputMode === "speech") speakText(result);
     } catch {
-      // Fallback to local dictionary
       const localResult = localTranslate(textToTranslate, targetLang);
       if (localResult) {
         setTranslatedText(localResult);
         setTranslationSource("local");
         setStatus("ready");
-
-        if (outputMode === "speech") {
-          speakText(localResult);
-        }
+        if (outputMode === "speech") speakText(localResult);
       } else {
         setErrorMsg("Translation failed. Try again.");
         setStatus("error");
@@ -324,6 +506,7 @@ const Demo = () => {
     setErrorMsg("");
     setStatus("ready");
     setTranslationSource("");
+    setDetectedGesture("");
     speechSynthesis.cancel();
     setIsSpeaking(false);
   };
@@ -333,7 +516,7 @@ const Demo = () => {
     listening: { color: "bg-primary", label: "Listening..." },
     detecting: { color: "bg-primary", label: "Detecting signs..." },
     translating: { color: "bg-accent", label: "Translating..." },
-    processing: { color: "bg-secondary", label: "Processing..." },
+    processing: { color: "bg-secondary", label: "Loading MediaPipe..." },
     error: { color: "bg-destructive", label: "Error" },
   };
 
@@ -470,6 +653,7 @@ const Demo = () => {
                     setTranscript("");
                     setTranslatedText("");
                     setErrorMsg("");
+                    setDetectedGesture("");
                   }}
                   className={`flex-1 flex items-center justify-center gap-2 py-3.5 text-sm font-medium transition-all ${
                     inputMode === tab.mode
@@ -557,6 +741,10 @@ const Demo = () => {
                         muted
                         className="w-full h-full object-cover"
                       />
+                      <canvas
+                        ref={canvasRef}
+                        className="absolute inset-0 w-full h-full pointer-events-none"
+                      />
                       {!streamRef.current && (
                         <div className="absolute inset-0 flex items-center justify-center">
                           <Camera className="h-10 w-10 text-muted-foreground/30" />
@@ -568,22 +756,31 @@ const Demo = () => {
                             <span className="w-1.5 h-1.5 rounded-full bg-destructive animate-pulse" />
                             LIVE
                           </div>
+                          {detectedGesture && (
+                            <div className="absolute top-2 right-2 px-2 py-1 rounded-md bg-background/80 text-foreground text-xs font-mono backdrop-blur-sm">
+                              ✋ {detectedGesture}
+                            </div>
+                          )}
                           <div className="absolute bottom-2 left-2 right-2 px-2 py-1 rounded-md bg-background/70 text-foreground text-xs font-mono text-center backdrop-blur-sm">
-                            Detecting signs...
+                            {detectedGesture ? `Detected: "${detectedGesture}"` : "Detecting signs..."}
                           </div>
                         </>
                       )}
                     </div>
                     <button
                       onClick={status === "detecting" ? stopCamera : startCamera}
-                      disabled={status === "translating"}
+                      disabled={status === "translating" || status === "processing"}
                       className={`px-6 py-2.5 rounded-xl text-sm font-medium transition-all ${
                         status === "detecting"
                           ? "gradient-primary text-primary-foreground shadow-glow"
+                          : status === "processing"
+                          ? "bg-muted text-muted-foreground cursor-wait"
                           : "bg-muted text-foreground hover:bg-muted/80"
                       }`}
                     >
-                      {status === "detecting" ? (
+                      {status === "processing" ? (
+                        <span className="flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Loading MediaPipe...</span>
+                      ) : status === "detecting" ? (
                         <span className="flex items-center gap-2"><Square className="h-4 w-4" /> Stop Camera</span>
                       ) : (
                         <span className="flex items-center gap-2"><Camera className="h-4 w-4" /> Start Camera</span>
@@ -693,7 +890,6 @@ const Demo = () => {
                       {outputMode === "speech" && (
                         <div className="flex flex-col items-center gap-6">
                           <p className="text-xl font-medium text-foreground text-center">{translatedText}</p>
-                          {/* Audio waveform */}
                           <div className="flex items-center justify-center gap-[2px] h-12">
                             {Array.from({ length: 32 }).map((_, i) => (
                               <motion.div
