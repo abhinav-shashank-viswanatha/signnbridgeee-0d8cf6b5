@@ -116,58 +116,61 @@ async function loadMediaPipe() {
 }
 
 function detectGesture(landmarks: any[]): string {
-  // landmarks is array of 21 hand landmarks {x,y,z}
   const thumbTip = landmarks[4];
   const indexTip = landmarks[8];
   const middleTip = landmarks[12];
   const ringTip = landmarks[16];
   const pinkyTip = landmarks[20];
   const wrist = landmarks[0];
-  const indexMcp = landmarks[5];
-  const middleMcp = landmarks[9];
-  const ringMcp = landmarks[13];
-  const pinkyMcp = landmarks[17];
 
-  const dist = (a: any, b: any) => Math.hypot(a.x - b.x, a.y - b.y);
+  const indexUp = indexTip.y < landmarks[6].y;
+  const middleUp = middleTip.y < landmarks[10].y;
+  const ringUp = ringTip.y < landmarks[14].y;
+  const pinkyUp = pinkyTip.y < landmarks[18].y;
 
-  const indexUp = indexTip.y < indexMcp.y;
-  const middleUp = middleTip.y < middleMcp.y;
-  const ringUp = ringTip.y < ringMcp.y;
-  const pinkyUp = pinkyTip.y < pinkyMcp.y;
+  const thumbIndexDist = Math.hypot(thumbTip.x - indexTip.x, thumbTip.y - indexTip.y);
 
-  const thumbIndexDist = dist(thumbTip, indexTip);
-
-  // Thumbs up: only thumb extended, fingers curled
-  if (!indexUp && !middleUp && !ringUp && !pinkyUp && thumbTip.y < wrist.y - 0.15) {
+  // 👍 YES — thumb up, all fingers curled
+  if (thumbTip.y < wrist.y && !indexUp && !middleUp && !ringUp && !pinkyUp) {
     return "Yes";
   }
 
-  // Open palm (all fingers up) → Hello
+  // ✋ HELLO — open palm, all fingers up
   if (indexUp && middleUp && ringUp && pinkyUp) {
     return "Hello";
   }
 
-  // Peace sign (index + middle up)
+  // ✌️ PEACE — index + middle up only
   if (indexUp && middleUp && !ringUp && !pinkyUp) {
     return "Peace";
   }
 
-  // OK sign (thumb + index close, others up)
-  if (thumbIndexDist < 0.06 && middleUp && ringUp && pinkyUp) {
+  // ✊ STOP — fist, no fingers up
+  if (!indexUp && !middleUp && !ringUp && !pinkyUp) {
+    return "Stop";
+  }
+
+  // ☝️ ONE — index finger only
+  if (indexUp && !middleUp && !ringUp && !pinkyUp) {
+    return "One";
+  }
+
+  // 👌 OK — thumb + index close together
+  if (thumbIndexDist < 0.05) {
     return "OK";
   }
 
-  // Fist (no fingers up) → No
-  if (!indexUp && !middleUp && !ringUp && !pinkyUp) {
-    return "No";
+  // 🤟 LOVE — index + pinky up, middle + ring down
+  if (indexUp && !middleUp && !ringUp && pinkyUp) {
+    return "Love";
   }
 
-  // Index only → Please
-  if (indexUp && !middleUp && !ringUp && !pinkyUp) {
-    return "Please";
+  // 🤚 HI — index + middle + ring up, pinky down
+  if (indexUp && middleUp && ringUp && !pinkyUp) {
+    return "Hi";
   }
 
-  return "Hello";
+  return "";
 }
 
 const Demo = () => {
