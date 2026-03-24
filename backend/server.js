@@ -1,5 +1,6 @@
 const express = require("express");
 const cors = require("cors");
+const axios = require("axios");
 
 const app = express();
 
@@ -10,24 +11,20 @@ app.post("/translate", async (req, res) => {
   const { text, target } = req.body;
 
   try {
-    const response = await fetch("https://libretranslate.de/translate", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
+    const response = await axios.post(
+      "https://libretranslate.de/translate",
+      {
         q: text,
         source: "auto",
         target: target,
         format: "text"
-      })
-    });
+      }
+    );
 
-    const data = await response.json();
-
-    res.json({ translatedText: data.translatedText });
+    res.json({ translatedText: response.data.translatedText });
 
   } catch (error) {
+    console.error(error.message);
     res.json({ translatedText: "Translation failed" });
   }
 });
