@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Mic, MicOff, Camera, Type, Volume2, Hand, ChevronDown, ArrowLeftRight, Loader2, Square, Play, Pause, RotateCcw } from "lucide-react";
+import { translateText } from "@/utils/translate";
 
 type InputMode = "text" | "speech" | "sign";
 type OutputMode = "text" | "speech" | "sign";
