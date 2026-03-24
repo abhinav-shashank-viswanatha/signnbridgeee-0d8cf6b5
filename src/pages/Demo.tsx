@@ -200,34 +200,34 @@ const Demo = () => {
   const isTranslatingRef = useRef(false);
   const gestureTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Translation API with multiple fallback endpoints
+  // Translation API via backend function
   const apiTranslate = async (text: string, targetLangLabel: string): Promise<string> => {
     const targetCode = langCodeMap[targetLangLabel] || "es";
-    const endpoints = [
-      "https://translate.argosopentech.com/translate",
-      "https://libretranslate.de/translate",
-    ];
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
-    for (const url of endpoints) {
-      try {
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 8000);
-        const response = await fetch(url, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ q: text, source: "auto", target: targetCode, format: "text" }),
-          signal: controller.signal,
-        });
-        clearTimeout(timeout);
-        if (!response.ok) continue;
-        const data = await response.json();
-        console.log("Translation API response:", data);
-        if (data.translatedText) return data.translatedText;
-      } catch {
-        console.log(`Endpoint ${url} failed, trying next...`);
-      }
-    }
-    throw new Error("All translation endpoints failed");
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 12000);
+
+    const response = await fetch(`${supabaseUrl}/functions/v1/translate`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${supabaseKey}`,
+        "apikey": supabaseKey,
+      },
+      body: JSON.stringify({ text, target: targetCode }),
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeout);
+
+    if (!response.ok) throw new Error("Translation failed");
+
+    const data = await response.json();
+    console.log("Translation API response:", data);
+    if (data.translatedText) return data.translatedText;
+    throw new Error("No translated text in response");
   };
 
   // Speech recognition
