@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Mic, MicOff, Camera, Type, Volume2, Hand, ChevronDown, ArrowLeftRight, Loader2, Square, Play, Pause, RotateCcw } from "lucide-react";
+import { translateText } from "@/utils/translate";
 
 type InputMode = "text" | "speech" | "sign";
 type OutputMode = "text" | "speech" | "sign";
@@ -200,34 +201,13 @@ const Demo = () => {
   const isTranslatingRef = useRef(false);
   const gestureTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Translation API via backend function
+  // Translation API via backend
   const apiTranslate = async (text: string, targetLangLabel: string): Promise<string> => {
     const targetCode = langCodeMap[targetLangLabel] || "es";
-    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-    const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 12000);
-
-    const response = await fetch(`${supabaseUrl}/functions/v1/translate`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${supabaseKey}`,
-        "apikey": supabaseKey,
-      },
-      body: JSON.stringify({ text, target: targetCode }),
-      signal: controller.signal,
-    });
-
-    clearTimeout(timeout);
-
-    if (!response.ok) throw new Error("Translation failed");
-
-    const data = await response.json();
-    console.log("Translation API response:", data);
-    if (data.translatedText) return data.translatedText;
-    throw new Error("No translated text in response");
+    const result = await translateText(text, targetCode);
+    console.log("Translation API response:", result);
+    if (result === "Translation failed") throw new Error(result);
+    return result;
   };
 
   // Speech recognition
