@@ -11,17 +11,31 @@ app.post("/translate", async (req, res) => {
   const { text, target } = req.body;
 
   try {
-    const response = await axios.post(
-      "https://libretranslate.de/translate",
-      {
-        q: text,
-        source: "auto",
-        target: target,
-        format: "text"
-      }
+    // 🔹 Try LibreTranslate first
+    try {
+      const response = await axios.post(
+        "https://libretranslate.com/translate",
+        {
+          q: text,
+          source: "auto",
+          target: target,
+          format: "text"
+        }
+      );
+
+      return res.json({ translatedText: response.data.translatedText });
+    } catch (err) {
+      console.log("LibreTranslate failed, trying fallback...");
+    }
+
+    // 🔹 Fallback: MyMemory API
+    const fallback = await axios.get(
+      `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=en|${target}`
     );
 
-    res.json({ translatedText: response.data.translatedText });
+    return res.json({
+      translatedText: fallback.data.responseData.translatedText
+    });
 
   } catch (error) {
     console.error(error.message);
