@@ -10,36 +10,27 @@ app.use(express.json());
 app.post("/translate", async (req, res) => {
   const { text, target } = req.body;
 
+  console.log("Incoming request:", text, target);
+
   try {
-    // 🔹 Try LibreTranslate first
-    try {
-      const response = await axios.post(
-        "https://libretranslate.com/translate",
-        {
-          q: text,
-          source: "auto",
-          target: target,
-          format: "text"
-        }
-      );
-
-      return res.json({ translatedText: response.data.translatedText });
-    } catch (err) {
-      console.log("LibreTranslate failed, trying fallback...");
-    }
-
-    // 🔹 Fallback: MyMemory API
-    const fallback = await axios.get(
+    // ✅ Try MyMemory API (more reliable)
+    const response = await axios.get(
       `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=en|${target}`
     );
 
-    return res.json({
-      translatedText: fallback.data.responseData.translatedText
-    });
+    console.log("API Response:", response.data);
+
+    const translated = response.data?.responseData?.translatedText;
+
+    if (translated) {
+      return res.json({ translatedText: translated });
+    } else {
+      return res.json({ translatedText: "No translation found" });
+    }
 
   } catch (error) {
-    console.error(error.message);
-    res.json({ translatedText: "Translation failed" });
+    console.error("ERROR:", error.message);
+    return res.json({ translatedText: "Translation failed" });
   }
 });
 
